@@ -30,11 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - platform: ios
-            runner: macos-15
-          - platform: windows
-            runner: windows-2022
+        include: ${{ fromJSON(contains(github.event.head_commit.message, '[ios-only]') && '[{"platform":"ios","runner":"macos-15"}]' || '[{"platform":"ios","runner":"macos-15"},{"platform":"windows","runner":"windows-2022"}]') }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     steps:

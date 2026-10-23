@@ -38,7 +38,12 @@ if '--sdl' in sys.argv:
 #else
             [metalCommandBuffer->handle presentDrawable:windowData->drawable];
 #endif''')
-    print('Pinned SDL: iOS-only Metal minimum presentation duration and presentedTime callback added')
+    # SDL intentionally keeps UIKit alive when a traditional SDL_main returns.
+    # Daytona is not a setup-only callback app: its return follows save/cleanup.
+    edit('extern/sdl3/src/video/uikit/SDL_uikitappdelegate.m',
+         '    // exit(exit_status);',
+         "#if defined(SDL_PLATFORM_IOS)\n    // Daytona's main has saved NVRAM/config and released app resources.\n    // Return to the launcher instead of retaining an empty UIKit event loop.\n    exit(exit_status);\n#else\n    // exit(exit_status);\n#endif")
+    print('Pinned SDL: iOS presentation timing and clean process exit added')
     sys.exit(0)
 
 for name in ('ios_pacing.h', 'ios_pacing.mm'):

@@ -41,16 +41,16 @@ try:
     run([sys.executable,'scripts/recompile.py','--set','daytona','--build-dir','build-daytona'],cwd='source')
     if platform == 'ios':
         gen = str(Path('source/build-daytona/gen').resolve())
-        run(['cmake','-S','.','-B','build-ios-game','-G','Xcode','-DCMAKE_SYSTEM_NAME=iOS','-DCMAKE_OSX_ARCHITECTURES=arm64','-DCMAKE_OSX_DEPLOYMENT_TARGET=15.0','-DM2_ROMSET=daytona','-DM2_GEN_ROOT='+gen,'-DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO','-DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED=NO','-DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY='],cwd='source')
-        run(['cmake','--build','build-ios-game','--config','Release','--target','daytona','--parallel','3'],cwd='source')
-        app = 'source/build-ios-game/Release-iphoneos/daytona.app'
+        run(['cmake','-S','.','-B','build-ios-check','-G','Xcode','-DCMAKE_SYSTEM_NAME=iOS','-DCMAKE_OSX_ARCHITECTURES=arm64','-DCMAKE_OSX_DEPLOYMENT_TARGET=15.0','-DM2_ROMSET=daytona','-DM2_GEN_ROOT='+gen,'-DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO','-DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED=NO','-DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY='],cwd='source')
+        run(['cmake','--build','build-ios-check','--config','Release','--target','daytona','--parallel','3'],cwd='source')
+        app = 'source/build-ios-check/Release-iphoneos/daytona.app'
         run([sys.executable,'verify_ipa.py',app])
         payload = package / 'Payload'; payload.mkdir(exist_ok=True)
         run(['ditto','--norsrc','--noextattr','--noqtn',app,str(payload/'daytona.app')])
         # No signing identity is used. Remove an ad-hoc signature if present.
         signed = subprocess.run(['codesign','-d',str(payload/'daytona.app')],stdout=log,stderr=log).returncode == 0
         if signed: run(['codesign','--remove-signature',str(payload/'daytona.app')])
-        run(['ditto','-c','-k','--norsrc','--noextattr','--noqtn','--keepParent','Payload','Daytona-iOS-pacing-audit-unsigned.ipa'],cwd=str(package))
+        run(['ditto','-c','-k','--norsrc','--noextattr','--noqtn','--keepParent','Payload','Daytona-iOS-build6-quit-fix-unsigned.ipa'],cwd=str(package))
         shutil.rmtree(payload)
     else:
         shutil.copyfile('source/build-daytona/Release/daytona.exe', package/'daytona.exe')

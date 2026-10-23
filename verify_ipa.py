@@ -9,6 +9,7 @@ assert info['CFBundleIdentifier'] == 'com.boucydesigns.daytona'
 assert info['CADisableMinimumFrameDurationOnPhone'] is True
 assert info['UIFileSharingEnabled'] is True
 assert info['CFBundleShortVersionString'] == '0.5'
+assert str(info['CFBundleVersion']) == '6'
 assert info.get('NSLocalNetworkUsageDescription')
 assert info.get('CFBundleIcons')
 binary = app / info['CFBundleExecutable']
