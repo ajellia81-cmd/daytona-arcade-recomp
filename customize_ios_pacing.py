@@ -38,11 +38,12 @@ if '--sdl' in sys.argv:
 #else
             [metalCommandBuffer->handle presentDrawable:windowData->drawable];
 #endif''')
-    # SDL intentionally keeps UIKit alive when a traditional SDL_main returns.
-    # Daytona is not a setup-only callback app: its return follows save/cleanup.
+    # Both scene-based (iOS 13+) and legacy delegates invoke SDL_main.
+    # Daytona returns only after saving and releasing application resources.
+    # Cover both paths; the scene path is used on current iPhones/LiveContainer.
     edit('extern/sdl3/src/video/uikit/SDL_uikitappdelegate.m',
-         '    // exit(exit_status);',
-         "#if defined(SDL_PLATFORM_IOS)\n    // Daytona's main has saved NVRAM/config and released app resources.\n    // Return to the launcher instead of retaining an empty UIKit event loop.\n    exit(exit_status);\n#else\n    // exit(exit_status);\n#endif")
+         '    if (launchWindow) {\n        launchWindow.hidden = YES;\n        launchWindow = nil;\n    }',
+         '    if (launchWindow) {\n        launchWindow.hidden = YES;\n        launchWindow = nil;\n    }\n#if defined(SDL_PLATFORM_IOS)\n    // Daytona has finished saving and teardown in either UIKit lifecycle.\n    exit(exit_status);\n#endif', count=2)
     print('Pinned SDL: iOS presentation timing and clean process exit added')
     sys.exit(0)
 
