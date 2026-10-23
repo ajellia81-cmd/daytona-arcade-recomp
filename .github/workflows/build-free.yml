@@ -1,0 +1,105 @@
+name: Free Daytona iOS and Windows audit
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/ios-platform-audit]
+    paths-ignore: ['**.md']
+permissions:
+  contents: read
+jobs:
+  shaders:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile public shared shaders
+        run: |
+          git clone https://github.com/alphanu1/daytona-arcade-recomp.git source
+          git -C source checkout 32967f60c01c1753b329dc4a3e943c4e1275006b
+          python3 customize_color.py
+          python3 customize_gpu_color.py
+          python3 audit_launcher.py --shaders-only
+          python3 source/scripts/build_shaders.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: public-gpu-shaders
+          path: source/src/app/gpu/shaders_gen.h
+          retention-days: 1
+  build:
+    needs: shaders
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ios
+            runner: macos-15
+          - platform: windows
+            runner: windows-2022
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch immutable public source
+        run: |
+          git clone https://github.com/alphanu1/daytona-arcade-recomp.git source
+          git -C source checkout 32967f60c01c1753b329dc4a3e943c4e1275006b
+      - uses: actions/download-artifact@v4
+        with:
+          name: public-gpu-shaders
+          path: source/src/app/gpu
+      - name: Prepare audited source without private inputs
+        run: python free_prepare.py ${{ matrix.platform }}
+      - name: Validate iOS arm64 source and pacing
+        if: matrix.platform == 'ios'
+        run: |
+          clang++ -std=c++20 -DDAYTONA_IOS_PACING=1 -Isource/src test_ios_pacing.cpp source/src/app/pacing.cpp -o /tmp/test-ios-pacing
+          /tmp/test-ios-pacing
+          clang++ -std=c++20 -Isource/src source/tests/test_app_pacing.cpp source/src/app/pacing.cpp -o /tmp/test-desktop-pacing
+          /tmp/test-desktop-pacing
+          cmake -S source -B source/build-ios-check -G Xcode -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 -DM2_ROMSET=daytona -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO
+          cmake --build source/build-ios-check --config Release --target daytona_app --parallel 3
+      - name: Validate Windows app source and runtime tests
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          cmake -S source -B source/build-tests -A x64 -T ClangCL -DM2_ROMSET=daytona
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build source/build-tests --config Release --target daytona_app test_app_pacing test_app_config test_app_controls --parallel 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --test-dir source/build-tests -C Release -R "app_(pacing|config|controls)" --output-on-failure
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Check private-build secret availability
+        id: private
+        shell: python
+        env:
+          DAYTONA_BUILD_KEY: ${{ secrets.DAYTONA_BUILD_KEY }}
+        run: |
+          import os
+          from pathlib import Path
+          available = bool(os.environ.get('DAYTONA_BUILD_KEY')) and Path('private-input.enc').exists()
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              out.write('available=' + str(available).lower() + '\n')
+          print('Private package build available:', available)
+          if not available: print('Source validation completed; encrypted package build awaits approved secret/input setup.')
+      - name: Install authenticated envelope support
+        if: steps.private.outputs.available == 'true'
+        run: python -m pip install cryptography==50.0.2
+      - name: Build using confidential inputs with private logs
+        if: steps.private.outputs.available == 'true'
+        env:
+          DAYTONA_BUILD_KEY: ${{ secrets.DAYTONA_BUILD_KEY }}
+        run: |
+          python free_crypto.py input
+          python free_build_game.py ${{ matrix.platform }}
+      - name: Encrypt all private outputs and logs
+        if: always() && steps.private.outputs.available == 'true'
+        env:
+          DAYTONA_BUILD_KEY: ${{ secrets.DAYTONA_BUILD_KEY }}
+        run: python free_crypto.py output Daytona-${{ matrix.platform }}-private.enc
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.private.outputs.available == 'true'
+        with:
+          name: daytona-${{ matrix.platform }}-encrypted
+          path: Daytona-${{ matrix.platform }}-private.enc
+          retention-days: 1
+          if-no-files-found: error
