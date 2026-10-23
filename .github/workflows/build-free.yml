@@ -48,6 +48,8 @@ jobs:
       - name: Validate iOS arm64 source and pacing
         if: matrix.platform == 'ios'
         run: |
+          clang -std=c11 -fobjc-arc -fblocks -framework Foundation -I. test_ios_rumble.m -o /tmp/test-ios-rumble
+          /tmp/test-ios-rumble
           clang++ -std=c++20 -DDAYTONA_IOS_PACING=1 -Isource/src test_ios_pacing.cpp source/src/app/pacing.cpp -o /tmp/test-ios-pacing
           /tmp/test-ios-pacing
           clang++ -std=c++20 -Isource/src source/tests/test_app_pacing.cpp source/src/app/pacing.cpp -o /tmp/test-desktop-pacing

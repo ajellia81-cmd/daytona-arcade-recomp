@@ -9,14 +9,14 @@ assert info['CFBundleIdentifier'] == 'com.boucydesigns.daytona'
 assert info['CADisableMinimumFrameDurationOnPhone'] is True
 assert info['UIFileSharingEnabled'] is True
 assert info['CFBundleShortVersionString'] == '0.5'
-assert str(info['CFBundleVersion']) == '7'
+assert str(info['CFBundleVersion']) == '8'
 assert info.get('NSLocalNetworkUsageDescription')
 assert info.get('CFBundleIcons')
 binary = app / info['CFBundleExecutable']
 archs = subprocess.check_output(['lipo', '-archs', str(binary)], text=True).strip()
 assert archs == 'arm64', archs
 strings = subprocess.check_output(['strings', str(binary)], text=True)
-for marker in ('daytona.pacing.minimum_duration', 'daytona.pacing.probe',
+for marker in ('daytona.pacing.minimum_duration', 'daytona.pacing.probe', 'DaytonaIOSRumbleContext',
                'Hardware VRR not verified', 'daytona-pacing.csv',
                'Sync to display (60 fps, +4.3% speed)',
                'VRR pacing (iOS native request, experimental)'):

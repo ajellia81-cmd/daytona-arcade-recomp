@@ -50,8 +50,8 @@ try:
         # No signing identity is used. Remove an ad-hoc signature if present.
         signed = subprocess.run(['codesign','-d',str(payload/'daytona.app')],stdout=log,stderr=log).returncode == 0
         if signed: run(['codesign','--remove-signature',str(payload/'daytona.app')])
-        run(['ditto','-c','-k','--norsrc','--noextattr','--noqtn','--keepParent','Payload','Daytona-iOS-build7-scene-quit-fix-unsigned.ipa'],cwd=str(package))
-        run([sys.executable, 'verify_ios_quit_binary.py', str(package/'Daytona-iOS-build7-scene-quit-fix-unsigned.ipa')])
+        run(['ditto','-c','-k','--norsrc','--noextattr','--noqtn','--keepParent','Payload','Daytona-iOS-build8-rumble-warmup-unsigned.ipa'],cwd=str(package))
+        run([sys.executable, 'verify_ios_quit_binary.py', str(package/'Daytona-iOS-build8-rumble-warmup-unsigned.ipa')])
         shutil.rmtree(payload)
     else:
         shutil.copyfile('source/build-daytona/Release/daytona.exe', package/'daytona.exe')
